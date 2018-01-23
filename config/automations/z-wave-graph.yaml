@@ -1,0 +1,7 @@
+- alias: Generate Z-Wave graph
+  trigger:
+    platform: time
+    minutes: '/5'
+    seconds: 00
+  action:
+    - service: shell_command.z_wave_graph

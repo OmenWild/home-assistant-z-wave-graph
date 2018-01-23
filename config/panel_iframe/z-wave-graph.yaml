@@ -1,0 +1,4 @@
+z_wave_graph:
+  title: 'Z-Wave Graph'
+  icon: mdi:vector-square
+  url: !secret z_wave_graph_url

@@ -1,0 +1,24 @@
+<html>
+  <head>
+    <script src="/local/svg-pan-zoom.min.js"></script>
+  </head>
+  
+  <body>
+    <embed id="graph" type="image/svg+xml" src="" style="width: 100%; height: 100%" />
+    
+    <script>
+      // Need to do this trickery as otherwise the image gets cached and won't reload on update.
+      var d = new Date(); 
+      document.getElementById("graph").src = "/local/z-wave-graph.svg?ts=" + d.getTime();
+      
+      
+      window.onload = function() {
+      svgPanZoom('#graph', {
+      controlIconsEnabled: false,
+      zoomScaleSensitivity: 0.7,
+      minZoom: 1
+      });
+      };
+    </script>
+  </body>
+</html>
