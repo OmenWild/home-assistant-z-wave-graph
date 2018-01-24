@@ -25,7 +25,9 @@ class ZWave(object):
         if 'ssl_key' in self.haconf['http']:
             use_ssl = True
 
-        base_url = self.haconf['http']['base_url'].split(':')[0]
+        base_url = self.haconf['http']['base_url']
+        if ':' in base_url:
+            base_url = base_url.split(':')[0]
 
         self.api = remote.API(base_url, api_password, use_ssl=use_ssl)
 
