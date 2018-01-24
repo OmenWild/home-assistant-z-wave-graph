@@ -22,7 +22,7 @@ The Python script loads your HA configuration to pull out the details it needs.
 
 Put all the files in their correct location (assuming you're using split configuration):
 ```
-automtion: !include_dir_merge_list automations/
+automation: !include_dir_merge_list automations/
 shell_command: !include_dir_merge_named shell_commands/
 panel_iframe: !include_dir_merge_named panel_iframe/
 ```
