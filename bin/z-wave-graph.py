@@ -12,6 +12,9 @@ from graphviz import Digraph
 
 class ZWave(object):
     def __init__(self, config):
+        self.connections = {}
+        self.primary_controller = []
+
         self.haconf = homeassistant.config.load_yaml_config_file(config)
 
         self.directory = os.path.join(os.path.dirname(config), 'www')
@@ -47,7 +50,6 @@ class ZWave(object):
 
 
     def _get_entities(self):
-        self.connections = {}
 
         entities = remote.get_states(self.api)
         for entity in entities:
@@ -63,8 +65,9 @@ class ZWave(object):
                 try:
                     if 'primaryController' in entity.attributes['capabilities']:
                         # Make any Z-Wave node that is a primaryController stand out.
-                        extra['fillcolor'] = 'lightgreen'
+                        extra['fillcolor'] = 'chartreuse'
                         extra['style'] = "rounded,filled"
+                        self.primary_controller.append(node_id)
                 except KeyError:
                     pass
 
@@ -98,7 +101,12 @@ class ZWave(object):
         for key in sorted(self.connections):
             nodes = self.connections[key]
             for node in nodes.keys():
-                self.dot.edge(key, node, dir='both')
+                extra = {'dir': 'both'}
+                if key in self.primary_controller:
+                    extra['color'] = 'green'
+                    extra['penwidth'] = '3'
+
+                self.dot.edge(key, node, **extra)
 
                 try:
                     # This bit of trickery is to work around the fact that A -> B and usually B -> A too.
