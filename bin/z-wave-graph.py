@@ -29,7 +29,7 @@ class ZWave(object):
             if ':' in base_url:
                 base_url = base_url.split(':')[0]
 
-        if base_url == 'localhost':
+        if base_url != 'localhost':
             if 'api_password' in self.haconf['http']:
                 api_password = self.haconf['http']['api_password']
 
