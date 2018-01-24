@@ -24,7 +24,7 @@ class ZWave(object):
         use_ssl = False
         base_url = 'localhost'
 
-        if 'base_url' in self.haconf:
+        if 'base_url' in self.haconf['http']:
             base_url = self.haconf['http']['base_url']
             if ':' in base_url:
                 base_url = base_url.split(':')[0]
