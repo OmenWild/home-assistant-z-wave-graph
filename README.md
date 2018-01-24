@@ -7,7 +7,9 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 ## Install
 Install `graphviz`:
 ```
-apt-get install graphviz graphviz-dev    # Ubuntu/Rasbian
+apt-get install graphviz graphviz-dev # Debian/Ubuntu/Rasbian
+
+pip3 install graphviz # from INSIDE your venv if you use one
 ```
 
 ## Suggested Integration

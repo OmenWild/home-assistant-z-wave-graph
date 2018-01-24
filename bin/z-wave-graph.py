@@ -1,4 +1,4 @@
-#! /home/homeassistant/bin/python3
+#! /usr/bin/env python3
 
 import datetime
 import argparse
@@ -21,20 +21,24 @@ class ZWave(object):
         self.filename = 'z-wave-graph'
 
         api_password = None
-        if 'api_password' in self.haconf['http']:
-            api_password = self.haconf['http']['api_password']
-
         use_ssl = False
-        if 'ssl_key' in self.haconf['http']:
-            use_ssl = True
+        base_url = 'localhost'
 
-        base_url = self.haconf['http']['base_url']
-        if ':' in base_url:
-            base_url = base_url.split(':')[0]
+        if 'base_url' in self.haconf:
+            base_url = self.haconf['http']['base_url']
+            if ':' in base_url:
+                base_url = base_url.split(':')[0]
+
+        if base_url == 'localhost':
+            if 'api_password' in self.haconf['http']:
+                api_password = self.haconf['http']['api_password']
+
+            if 'ssl_key' in self.haconf['http']:
+                use_ssl = True
 
         self.api = remote.API(base_url, api_password, use_ssl=use_ssl)
 
-        self.dot = Digraph(comment='Home Assistant Z-Wave Graph', format='svg', engine='neato')
+        self.dot = Digraph(comment='Home Assistant Z-Wave Graph', format='svg', engine='dot')
 
         self.dot.attr(overlap='false')
 
@@ -42,7 +46,7 @@ class ZWave(object):
         self.dot.graph_attr.update({
             'label': r'Z-Wave Node Connections\nLast updated: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'fontsize': '24',
-            # 'rankdir': 'BT',
+            'concentrate': 'true',
         })
 
         self._get_entities()
@@ -121,7 +125,7 @@ class ZWave(object):
 
 if __name__ == '__main__':
     """Generate graph of Home Assistant Z-Wave devices."""
-    to_check = ['~/.config/configuration.yaml', '~/config/configuration.yaml']
+    to_check = ['~/.config/configuration.yaml', '~/config/configuration.yaml', '~/.homeassistant/configuration.yaml', '~/homeassistant/configuration.yaml']
     config = None
 
     for check in to_check:
