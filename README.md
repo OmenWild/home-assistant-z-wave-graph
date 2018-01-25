@@ -9,7 +9,7 @@ Install `graphviz`:
 ```
 apt-get install graphviz graphviz-dev # Debian/Ubuntu/Rasbian
 
-pip3 install graphviz # from INSIDE your venv if you use one
+pip3 install graphviz networkx # from INSIDE your venv if you use one
 ```
 
 ## Suggested Integration
@@ -52,7 +52,7 @@ Dotted lines are 3 or 4 hops from the Z-Wave controller.
 
 The trailing `+/-` next to the node_id (in brackets) indicates Z-Wave+ or regular.
 
-Any battery powered devices will have their battery level percent displayed next to the manufacturer. 
+Any battery powered devices will be rectangles and will have their battery level percent displayed next to the manufacturer. 
 
 ## Notes
 
