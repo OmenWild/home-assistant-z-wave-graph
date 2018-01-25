@@ -6,7 +6,9 @@ import os.path
 
 import homeassistant.config
 import homeassistant.remote as remote
+
 from graphviz import Digraph
+import networkx as nx
 
 
 class Node(object):
@@ -80,7 +82,6 @@ class Nodes(object):
 
     def create_ranks(self):
         # Dump everything into networkx to get depth
-        import networkx as nx
         G = nx.Graph()
 
         # First, add all the nodes
@@ -93,7 +94,11 @@ class Nodes(object):
 
         # Finally, find the shortest path
         for key, node in self.nodes.items():
-            node.rank = len(nx.shortest_path(G, 1, key))
+            try:
+                node.rank = len(nx.shortest_path(G, 1, key))
+            except nx.exception.NetworkXNoPath:
+                # Unconnected devices (remotes) may have no path.
+                node.rank = 0
 
         self.ranked = True
 
@@ -194,18 +199,6 @@ class ZWave(object):
                     self.dot.edge(str(node.id), str(edge), **extra)
                     graphed[(node.id, edge)] = True
 
-                # if node.rank == 1:
-                #     # Rank 1 gets special
-                #     if node.id not in graphed:
-                #         extra = {'fillcolor': 'chartreuse',
-                #                  'style': "rounded,filled"}
-                #
-                #         self.dot.node(str(node.id), **extra)
-                #         graphed[node.id] = True
-                # else:
-                #     if (node.id, edge) not in graphed:
-                #         self.dot.edge(str(node.id), str(edge), **extra)
-                #         graphed[(node.id, edge)] = True
 
     def render(self):
         self.dot.render(filename=self.filename, directory=self.directory)
