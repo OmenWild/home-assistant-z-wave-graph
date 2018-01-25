@@ -31,7 +31,9 @@ class ZWave(object):
 
         if base_url != 'localhost':
             if 'api_password' in self.haconf['http']:
-                api_password = self.haconf['http']['api_password']
+                api_password = str(self.haconf['http']['api_password'])
+                if isinstance(api_password, int):
+                    api_password = str(api_password)
 
             if 'ssl_key' in self.haconf['http']:
                 use_ssl = True
