@@ -42,7 +42,13 @@ friendly_name [node_id +/-]
 (product_name battery_level)
 ```
 
-The green node should be your USB dongle, identified by primaryController in capabilities.
+The green node should be your Z-Wave controller, identified by primaryController in capabilities.
+
+Green lines indicate connections to your Z-Wave controller.
+
+Dashed lines are nodes that are 2 hops from the Z-Wave controller.
+
+Dotted lines are 3 or 4 hops from the Z-Wave controller.
 
 The trailing `+/-` next to the node_id (in brackets) indicates Z-Wave+ or regular.
 
