@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 
-import sys
 import argparse
 import datetime
 import os.path
+import sys
+
 
 def need(what):
     print("Error unable to import the module `%s', please pip install it" % what, end='')
@@ -11,6 +12,7 @@ def need(what):
         print(" from WITHIN your virtual environment", end='')
     print(".\n")
     sys.exit(1)
+
 
 try:
     from graphviz import Digraph
@@ -31,7 +33,7 @@ class Node(object):
         self.attrs = attrs
         self.rank = None
 
-        self.id = self.attrs['node_id']
+        self.node_id = self.attrs['node_id']
         try:
             self.neighbors = sorted(self.attrs['neighbors'])
         except KeyError:
@@ -44,6 +46,11 @@ class Node(object):
                 self.primary_controller = True
         except KeyError:
             pass
+
+
+    @property
+    def id(self):
+        return self.node_id
 
 
     def __str__(self):
@@ -59,7 +66,7 @@ class Node(object):
 
         name = self.attrs['friendly_name']
 
-        name += " [%s" % self.id
+        name += " [%s" % self.node_id
 
         if self.attrs['is_zwave_plus']:
             name += "+"
@@ -90,7 +97,7 @@ class Nodes(object):
 
     def add(self, attrs):
         node = Node(attrs)
-        self.nodes[node.id] = node
+        self.nodes[node.node_id] = node
         if node.primary_controller:
             self.primary_controller = node
 
@@ -111,7 +118,9 @@ class Nodes(object):
         for key, node in self.nodes.items():
             try:
                 node.rank = len(nx.shortest_path(G, 1, key))
-            except nx.exception.NetworkXNoPath:
+                node.shortest = [p for p in nx.all_shortest_paths(G, 1, key)]
+                node.rank = len(node.shortest[0])
+            except (nx.exception.NetworkXNoPath, IndexError):
                 # Unconnected devices (remotes) may have no path.
                 node.rank = 0
 
@@ -164,8 +173,11 @@ class ZWave(object):
 
         # http://matthiaseisen.com/articles/graphviz/
         self.dot.attr('graph', {
-            'label': r'Z-Wave Node Connections\nLast updated: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'label':    r'Z-Wave Node Connections\nLast updated: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'fontsize': '24',
+            'rankdir':  'RL',
+            'nodesep':  "1",
+            'ranksep':  "1",
         })
 
         self._get_entities()
@@ -196,23 +208,26 @@ class ZWave(object):
         graphed = {}
 
         for node in self.nodes:
-            for edge in node.neighbors:
-                extra = {'dir': 'both'}
+            for path in node.shortest:
+                for edge in path[-2:]:
+                    extra = {'dir': 'both'}
+                    if node.id == edge:
+                        continue
 
-                if node.rank == 1:
-                    # Connections to the root node get special colors
-                    extra['color'] = 'green'
-                    extra['penwidth'] = '2'
-                elif node.rank == 2:
-                    extra['style'] = 'dashed'
-                    extra['penwidth'] = '2'
-                else:
-                    extra['style'] = 'dotted'
-                    extra['penwidth'] = '2'
+                    if self.nodes.nodes[edge].rank == 1:
+                        # Connections to the root node get special colors
+                        extra['color'] = 'green'
+                        extra['penwidth'] = '2'
+                    elif self.nodes.nodes[edge].rank:
+                        extra['style'] = 'dashed'
+                        extra['penwidth'] = '2'
+                    else:
+                        extra['style'] = 'dotted'
+                        extra['penwidth'] = '2'
 
-                if (node.id, edge) not in graphed and (edge, node.id) not in graphed:
-                    self.dot.edge(str(node.id), str(edge), **extra)
-                    graphed[(node.id, edge)] = True
+                    if (node.id, edge) not in graphed and (edge, node.id) not in graphed:
+                        self.dot.edge(str(node.id), str(edge), **extra)
+                        graphed[(node.id, edge)] = True
 
 
     def render(self):
@@ -230,6 +245,7 @@ if __name__ == '__main__':
             config = expanded
 
     if not config:
+        parser = argparse.ArgumentParser()
         parser = argparse.ArgumentParser()
         parser.add_argument('-c', '--config', help='path to configuration.yaml')
         args = parser.parse_args()
