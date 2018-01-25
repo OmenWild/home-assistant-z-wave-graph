@@ -2,7 +2,7 @@
 
 Graph your Z-Wave mesh automatically from within Home Assistant.
 
-![Graph](z-wave-graph-sample.png)
+![Graph](z-wave-graph-sample-2.png)
 
 ## Install
 Install `graphviz`:
