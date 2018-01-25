@@ -206,11 +206,11 @@ class ZWave(object):
 
 if __name__ == '__main__':
     """Generate graph of Home Assistant Z-Wave devices."""
-    to_check = ['~/.config/configuration.yaml', '~/config/configuration.yaml', '~/.homeassistant/configuration.yaml', '~/homeassistant/configuration.yaml']
+    to_check = ['~/.config/', '~/config/', '~/.homeassistant/', '~/homeassistant/', '/config/']
     config = None
 
     for check in to_check:
-        expanded = os.path.expanduser(check)
+        expanded = os.path.expanduser(os.path.join(check, 'configuration.yaml'))
         if os.path.isfile(expanded):
             config = expanded
 
