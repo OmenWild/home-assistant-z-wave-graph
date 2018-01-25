@@ -1,14 +1,29 @@
 #! /usr/bin/env python3
 
+import sys
 import argparse
 import datetime
 import os.path
 
+def need(what):
+    print("Error unable to import the module `%s', please pip install it" % what, end='')
+    if (hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)):
+        print(" from WITHIN your virtual environment", end='')
+    print(".\n")
+    sys.exit(1)
+
+try:
+    from graphviz import Digraph
+except ImportError:
+    need('graphviz')
+
+try:
+    import networkx as nx
+except ImportError:
+    need('networkx')
+
 import homeassistant.config
 import homeassistant.remote as remote
-
-from graphviz import Digraph
-import networkx as nx
 
 
 class Node(object):
