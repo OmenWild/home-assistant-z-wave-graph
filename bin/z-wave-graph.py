@@ -1,18 +1,120 @@
 #! /usr/bin/env python3
 
-import datetime
 import argparse
+import datetime
 import os.path
 
-import homeassistant.remote as remote
 import homeassistant.config
-
+import homeassistant.remote as remote
 from graphviz import Digraph
+
+
+class Node(object):
+    def __init__(self, attrs):
+        self.attrs = attrs
+        self.rank = None
+
+        self.id = self.attrs['node_id']
+        try:
+            self.neighbors = sorted(self.attrs['neighbors'])
+        except KeyError:
+            self.neighbors = []
+
+        self.primary_controller = False
+        try:
+            if 'primaryController' in self.attrs['capabilities']:
+                # Make any Z-Wave node that is a primaryController stand out.
+                self.primary_controller = True
+        except KeyError:
+            pass
+
+
+    def __str__(self):
+        name, extra = self.name()
+        return name
+
+
+    def name(self):
+        extra = {}
+        if self.primary_controller:
+            extra['fillcolor'] = 'chartreuse'
+            extra['style'] = "rounded,filled"
+
+        name = self.attrs['friendly_name']
+
+        name += " [%s" % self.id
+
+        if self.attrs['is_zwave_plus']:
+            name += "+"
+        else:
+            name += "-"
+        name += "]\n(%s" % self.attrs['product_name']
+
+        try:
+            name += ": %s%%" % self.attrs['battery_level']
+        except KeyError:
+            pass
+
+        name += ")"
+
+        return name, extra
+
+
+    def __iter__(self):
+        yield self.neighbors
+
+
+class Nodes(object):
+    def __init__(self):
+        self.nodes = {}
+        self.primary_controller = None
+        self.ranked = False
+
+
+    def add(self, attrs):
+        node = Node(attrs)
+        self.nodes[node.id] = node
+        if node.primary_controller:
+            self.primary_controller = node
+
+
+    def create_ranks(self):
+        # Dump everything into networkx to get depth
+        import networkx as nx
+        G = nx.Graph()
+
+        # First, add all the nodes
+        G.add_nodes_from(self.nodes.keys())
+
+        # Next, add all the edges
+        for key, node in self.nodes.items():
+            for neighbor in node.neighbors:
+                G.add_edge(key, neighbor)
+
+        # Finally, find the shortest path
+        for key, node in self.nodes.items():
+            node.rank = len(nx.shortest_path(G, 1, key))
+
+        self.ranked = True
+
+
+    def __iter__(self):
+        # Iterate over all the nodes, regardless of rank.
+        if not self.ranked:
+            self.create_ranks()
+
+        for rank in [1, 2, 3, 4]:
+            for key in sorted(self.nodes):
+                node = self.nodes[key]
+                if node.rank == rank:
+                    yield node
 
 
 class ZWave(object):
     def __init__(self, config):
-        self.connections = {}
+        self.nodes = Nodes()
+
+        self.neighbors = {}
         self.primary_controller = []
 
         self.haconf = homeassistant.config.load_yaml_config_file(config)
@@ -32,8 +134,6 @@ class ZWave(object):
         if base_url != 'localhost':
             if 'api_password' in self.haconf['http']:
                 api_password = str(self.haconf['http']['api_password'])
-                if isinstance(api_password, int):
-                    api_password = str(api_password)
 
             if 'ssl_key' in self.haconf['http']:
                 use_ssl = True
@@ -42,17 +142,18 @@ class ZWave(object):
 
         self.dot = Digraph(comment='Home Assistant Z-Wave Graph', format='svg', engine='dot')
 
-        self.dot.attr(overlap='false')
-
         # http://matthiaseisen.com/articles/graphviz/
-        self.dot.graph_attr.update({
+        self.dot.attr('graph', {
             'label': r'Z-Wave Node Connections\nLast updated: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'fontsize': '24',
-            'concentrate': 'true',
         })
 
         self._get_entities()
-        self._build_connections()
+        self._build_dot()
+
+
+    def add(self, node):
+        return self.nodes.add(node)
 
 
     def _get_entities(self):
@@ -60,66 +161,51 @@ class ZWave(object):
         entities = remote.get_states(self.api)
         for entity in entities:
             if entity.entity_id.startswith('zwave'):
-                node_id = str(entity.attributes['node_id'])
-
-                try:
-                    neighbors = entity.attributes['neighbors']
-                except KeyError:
-                    neighbors = []
-
-                extra = {}
-                try:
-                    if 'primaryController' in entity.attributes['capabilities']:
-                        # Make any Z-Wave node that is a primaryController stand out.
-                        extra['fillcolor'] = 'chartreuse'
-                        extra['style'] = "rounded,filled"
-                        self.primary_controller.append(node_id)
-                except KeyError:
-                    pass
-
-                name = entity.attributes['friendly_name']
-
-                name += " [%s" % node_id
-
-                if entity.attributes['is_zwave_plus']:
-                    name += "+"
-                else:
-                    name += "-"
-                name += "]\n(%s" % entity.attributes['product_name']
-
-                try:
-                    name += ": %s%%" % entity.attributes['battery_level']
-                except KeyError:
-                    pass
-
-                name += ")"
-
-                self.dot.node(node_id, name, extra)
-
-                for neighbor in neighbors:
-                    if node_id not in self.connections:
-                        self.connections[node_id] = {}
-
-                    self.connections[node_id][str(neighbor)] = True
+                self.add(entity.attributes)
 
 
-    def _build_connections(self):
-        for key in sorted(self.connections):
-            nodes = self.connections[key]
-            for node in nodes.keys():
+    def _build_dot(self):
+        for node in self.nodes:
+            name, extra = node.name()
+            extra['penwidth'] = '2'
+            if 'battery_level' in node.attrs:
+                extra['shape'] = 'polygon'
+            self.dot.node(str(node.id), name, extra)
+
+        # Tracked graphed connections to eliminate duplicates
+        graphed = {}
+
+        for node in self.nodes:
+            for edge in node.neighbors:
                 extra = {'dir': 'both'}
-                if key in self.primary_controller:
+
+                if node.rank == 1:
+                    # Connections to the root node get special colors
                     extra['color'] = 'green'
-                    extra['penwidth'] = '3'
+                    extra['penwidth'] = '2'
+                elif node.rank == 2:
+                    extra['style'] = 'dashed'
+                    extra['penwidth'] = '2'
+                else:
+                    extra['style'] = 'dotted'
+                    extra['penwidth'] = '2'
 
-                self.dot.edge(key, node, **extra)
+                if (node.id, edge) not in graphed and (edge, node.id) not in graphed:
+                    self.dot.edge(str(node.id), str(edge), **extra)
+                    graphed[(node.id, edge)] = True
 
-                try:
-                    # This bit of trickery is to work around the fact that A -> B and usually B -> A too.
-                    del(self.connections[node][key])
-                except KeyError:
-                    pass
-
+                # if node.rank == 1:
+                #     # Rank 1 gets special
+                #     if node.id not in graphed:
+                #         extra = {'fillcolor': 'chartreuse',
+                #                  'style': "rounded,filled"}
+                #
+                #         self.dot.node(str(node.id), **extra)
+                #         graphed[node.id] = True
+                # else:
+                #     if (node.id, edge) not in graphed:
+                #         self.dot.edge(str(node.id), str(edge), **extra)
+                #         graphed[(node.id, edge)] = True
 
     def render(self):
         self.dot.render(filename=self.filename, directory=self.directory)
@@ -134,11 +220,24 @@ if __name__ == '__main__':
         expanded = os.path.expanduser(check)
         if os.path.isfile(expanded):
             config = expanded
-            
-    parser = argparse.ArgumentParser()
+
     if not config:
-        print("Unable to automatically find configuration.yaml, you have to specify it.")
-        parser.add_argument('-i', '--config', help='path to configuration.yaml', required=True)
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-c', '--config', help='path to configuration.yaml')
+        args = parser.parse_args()
+
+        if 'config' not in args or not args.config:
+            raise ValueError("Unable to automatically find configuration.yaml, you have to specify it with -c/--config")
+
+        to_check = [args.config, os.path.join(args.config, 'configuration.yaml')]
+
+        for check in to_check:
+            expanded = os.path.expanduser(check)
+            if expanded and os.path.isfile(expanded):
+                config = expanded
+
+        if not config:
+            raise ValueError("Unable to find configuration.yaml in specified location.")
 
     zwave = ZWave(config)
     zwave.render()
