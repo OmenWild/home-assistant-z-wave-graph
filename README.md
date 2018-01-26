@@ -4,12 +4,16 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ![Graph](z-wave-graph-sample.png)
 
-## Install
-Install `graphviz`:
-```
-apt-get install graphviz graphviz-dev # Debian/Ubuntu/Rasbian
+## Update Info
 
-pip3 install graphviz networkx # from INSIDE your venv if you use one
+2018-01-25: 21:00 PST
+ 1. No longer using Graphviz, neither the system package nor the Python module are required. 
+ 1. `config/www/svg-pan-zoom.min.js` is no longer needed, you may delete it.
+
+## Install
+Install the `networkx` Python module:
+```
+pip3 install networkx # from INSIDE your venv if you use one
 ```
 
 ## Suggested Integration
@@ -20,7 +24,7 @@ Requires the following secret for the iframe url:
 ```
 z_wave_graph_url: http://YOUR_DOMAIN_HERE:8123/local/z-wave-graph.html
 ```
-The Python script loads your HA configuration to pull out the details it needs.
+The Python script loads your HA configuration to try to pull out the details it needs. Some installations require more tweaks. See `~/bin/z-wave-graph.py --help` for command line options.
 
 Put all the files in their correct location (assuming you're using split configuration):
 ```
@@ -33,29 +37,26 @@ Otherwise you will have to put the fiddly bit into the right place by hand.
 
 ## Running
 
-By default it will run every 5 minutes (`config/automations/z-wave-graph.yaml`) loading the current Z-Wave mesh. I experimented with on startup and shutdown, but the Z-Wave mesh did not exist at that point so the results were wrong.
+By default it is suppose to run every 5 minutes (`config/automations/z-wave-graph.yaml`) loading the current Z-Wave mesh. I experimented with on startup and shutdown, but the Z-Wave mesh did not exist at that point so the results were wrong.
 
 ## Graph
 
-```
-friendly_name [node_id +/-]
-(product_name battery_level)
-```
+The graph is draggable and zoomable (mouse wheel).
 
-The green node should be your Z-Wave controller, identified by primaryController in capabilities.
+The top node should be your Z-Wave controller, identified by primaryController in capabilities.
 
-Green lines indicate connections to your Z-Wave controller.
+All nodes have mouse-over information with details. A **+** after the Node: id indicates a Z-Wave plus device. 
 
-Dashed lines are nodes that are 2 hops from the Z-Wave controller.
+The diffent levels should correspond  to the hops in your mesh. You can click on a node to hilight the possible routes through other nodes.
 
-Dotted lines are 3 or 4 hops from the Z-Wave controller.
+Any battery powered devices will be rectangles and will have their battery level percent displayed in the mouse-over. 
 
-The trailing `+/-` next to the node_id (in brackets) indicates Z-Wave+ or regular.
+## Algorithm 
 
-Any battery powered devices will be rectangles and will have their battery level percent displayed next to the manufacturer. 
+The nodes and their neighbors are pulled from the HA API. networkx is then used to find all the shortest paths for each node back to the Z-Wave hub. Those edges are then graphed.
+
+This only shows the route possibilites as there is no way to know exactly what route any particular node uses.
 
 ## Notes
-
-Be sure to get [svg-pan-zoom.min.js](https://github.com/ariutta/svg-pan-zoom) and put it into `config/www/`.
 
 Note: originally based on [home-assistant-graph](https://github.com/happyleavesaoc/home-assistant-graph) so parts may look very familiar

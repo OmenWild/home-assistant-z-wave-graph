@@ -1,1 +1,1 @@
-z_wave_graph: ~/bin/z-wave-graph.py
+z_wave_graph: ~/bin/python3 ~/bin/z-wave-graph.py

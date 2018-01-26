@@ -1,24 +1,82 @@
 <html>
-  <head>
-    <script src="/local/svg-pan-zoom.min.js"></script>
-  </head>
-  
-  <body>
-    <embed id="graph" type="image/svg+xml" src="" style="width: 100%; height: 100%" />
-    
-    <script>
-      // Need to do this trickery as otherwise the image gets cached and won't reload on update.
-      var d = new Date(); 
-      document.getElementById("graph").src = "/local/z-wave-graph.svg?ts=" + d.getTime();
-      
-      
-      window.onload = function() {
-      svgPanZoom('#graph', {
-      controlIconsEnabled: false,
-      zoomScaleSensitivity: 0.7,
-      minZoom: 1
-      });
-      };
-    </script>
-  </body>
-</html>
+<head>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css"/>
+
+    <style type="text/css">
+        #mynetwork {
+            border: 1px solid lightgray;
+        }
+    </style>
+</head>
+<body>
+
+<div id="mynetwork"></div>
+
+<script type="text/javascript">
+    // https://codepen.io/KryptoniteDove/post/load-json-file-locally-using-pure-javascript
+    function loadJSON(callback, file) {
+        var xobj = new XMLHttpRequest();
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', file +'?ts=' + new Date().getTime(), false); // Replace 'my_data' with the path to your file
+        xobj.onreadystatechange = function () {
+            if (xobj.readyState == 4 && xobj.status == "200") {
+                // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+                callback(xobj.responseText);
+            }
+        };
+        xobj.send(null);
+    }
+
+    var json;
+
+    loadJSON(function (response,) {
+        // Parse JSON string into object
+        json = JSON.parse(response);
+    }, "/local/z-wave-graph.json");
+
+    var data = {
+        nodes: json['nodes'],
+        edges: json['edges']
+    };
+
+    var options = {
+        configure: {
+            enabled: true,
+            filter: 'physics, layout',
+            showButton: true
+        },
+
+        layout: {
+            hierarchical: {
+                enabled: true,
+                "direction": "DU",
+                sortMethod: "directed"
+            },
+        },
+        physics: {
+            hierarchicalRepulsion: {
+                centralGravity: 0,
+                springLength: 100,
+                springConstant: 0.01,
+                nodeDistance: 100
+            },
+            minVelocity: 0.75,
+            solver: "hierarchicalRepulsion"
+        },
+
+        edges: {
+            scaling: {
+                min: 2,
+                max: 5
+            }
+        }
+    };
+
+    // create a network
+    var container = document.getElementById('mynetwork');
+
+    // initialize your network!
+    var network = new vis.Network(container, data, options);
+</script>
+</body>

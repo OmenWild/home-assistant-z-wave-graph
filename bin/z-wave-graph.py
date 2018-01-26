@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+import json
 import os.path
 import sys
 
@@ -13,11 +14,6 @@ def need(what):
     print(".\n")
     sys.exit(1)
 
-
-try:
-    from graphviz import Digraph
-except ImportError:
-    need('graphviz')
 
 try:
     import networkx as nx
@@ -54,34 +50,28 @@ class Node(object):
 
 
     def __str__(self):
-        name, extra = self.name()
-        return name
+        if self.rank == 1:
+            return "Z-Wave Hub\n%s" % datetime.datetime.now().strftime('%b %d\n%T')
+        else:
+            return self.attrs['friendly_name'].replace(' ', "\n")
 
 
-    def name(self):
-        extra = {}
-        if self.primary_controller:
-            extra['fillcolor'] = 'chartreuse'
-            extra['style'] = "rounded,filled"
+    def title(self):
+        title = "<b>%s</b><br/>" % self.attrs['friendly_name']
 
-        name = self.attrs['friendly_name']
-
-        name += " [%s" % self.node_id
+        title += "Node: %s" % self.node_id
 
         if self.attrs['is_zwave_plus']:
-            name += "+"
-        else:
-            name += "-"
-        name += "]\n(%s" % self.attrs['product_name']
+            title += "<b>+</b>"
+
+        title += "<br/>Product Name: %s" % self.attrs['product_name']
 
         try:
-            name += ": %s%%" % self.attrs['battery_level']
+            title += "<br/>Battery: %s%%" % self.attrs['battery_level']
         except KeyError:
             pass
 
-        name += ")"
-
-        return name, extra
+        return title
 
 
     def __iter__(self):
@@ -142,6 +132,7 @@ class Nodes(object):
 class ZWave(object):
     def __init__(self, config):
         self.nodes = Nodes()
+        self.json = {'nodes': [], 'edges': []}
 
         self.neighbors = {}
         self.primary_controller = []
@@ -169,17 +160,6 @@ class ZWave(object):
 
         self.api = remote.API(base_url, api_password, use_ssl=use_ssl)
 
-        self.dot = Digraph(comment='Home Assistant Z-Wave Graph', format='svg', engine='dot')
-
-        # http://matthiaseisen.com/articles/graphviz/
-        self.dot.attr('graph', {
-            'label':    r'Z-Wave Node Connections\nLast updated: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'fontsize': '24',
-            'rankdir':  'RL',
-            'nodesep':  "1",
-            'ranksep':  "1",
-        })
-
         self._get_entities()
         self._build_dot()
 
@@ -198,11 +178,21 @@ class ZWave(object):
 
     def _build_dot(self):
         for node in self.nodes:
-            name, extra = node.name()
-            extra['penwidth'] = '2'
+            config = {
+                'label': str(node),
+                'title': node.title(),
+                'group': 'Layer %d' % node.rank,
+            }
             if 'battery_level' in node.attrs:
-                extra['shape'] = 'polygon'
-            self.dot.node(str(node.id), name, extra)
+                config['shape'] = 'box'
+            else:
+                config['shape'] = 'circle'
+
+            if node.rank == 1:
+                config['borderWidth'] = 2
+                config['fixed'] = True
+
+            self.json['nodes'].append({'id': node.id, **config})
 
         # Tracked graphed connections to eliminate duplicates
         graphed = {}
@@ -210,28 +200,22 @@ class ZWave(object):
         for node in self.nodes:
             for path in node.shortest:
                 for edge in path[-2:]:
-                    extra = {'dir': 'both'}
+                    config = {}
                     if node.id == edge:
                         continue
 
-                    if self.nodes.nodes[edge].rank == 1:
-                        # Connections to the root node get special colors
-                        extra['color'] = 'green'
-                        extra['penwidth'] = '2'
-                    elif self.nodes.nodes[edge].rank:
-                        extra['style'] = 'dashed'
-                        extra['penwidth'] = '2'
-                    else:
-                        extra['style'] = 'dotted'
-                        extra['penwidth'] = '2'
+                    config['value'] = 5 - node.rank
 
                     if (node.id, edge) not in graphed and (edge, node.id) not in graphed:
-                        self.dot.edge(str(node.id), str(edge), **extra)
+                        self.json['edges'].append({'from': node.id, 'to': edge, **config})
                         graphed[(node.id, edge)] = True
 
 
     def render(self):
-        self.dot.render(filename=self.filename, directory=self.directory)
+        # self.dot.render(filename=self.filename, directory=self.directory
+        fp = os.path.join(self.directory, self.filename + '.json')
+        with open(fp, 'w') as outfile:
+            pretty = json.dump(self.json, outfile, indent=4, sort_keys=True)
 
 
 if __name__ == '__main__':
