@@ -55,8 +55,8 @@ class Node(object):
         return self.node_id
 
     def __str__(self):
-        if self.rank == 1:
-            return "Z-Wave Hub\n%s" % datetime.datetime.now().strftime('%b %d\n%T')
+        if self.primary_controller:
+            return "Z-Wave Hub\n%s" % datetime.datetime.now().strftime('%b %d\n%H:%M')
         else:
             return self.attrs['friendly_name'].replace(' ', "\n")
 
@@ -108,12 +108,12 @@ class Nodes(object):
         # Finally, find the shortest path
         for key, node in self.nodes.items():
             try:
-                node.rank = len(nx.shortest_path(G, 1, key))
                 node.shortest = [p for p in nx.all_shortest_paths(G, 1, key)]
                 node.rank = len(node.shortest[0])
             except (nx.exception.NetworkXNoPath, IndexError):
                 # Unconnected devices (remotes) may have no current path.
-                node.rank = 0
+                node.rank = 1
+                node.shortest = [[]]
 
         self.ranked = True
 
@@ -181,7 +181,7 @@ class ZWave(object):
             else:
                 config['shape'] = 'circle'
 
-            if node.rank == 1:
+            if node.primary_controller:
                 config['borderWidth'] = 2
                 config['fixed'] = True
 
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate a Z-Wave mesh from your Home Assistant system.')
     parser.add_argument('--config', help='path to configuration.yaml')
     parser.add_argument('--port', type=int, default=8123, help='use if you run HA on a non-standard port')
-    parser.add_argument('--no-ssl', action="store_false", dest='ssl', default=True, help='force a non-SSL API connection')
+    parser.add_argument('--no-ssl', action="store_false", dest='ssl', default=False, help='force a non-SSL API connection')
 
     args = parser.parse_args()
 

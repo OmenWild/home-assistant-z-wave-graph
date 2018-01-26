@@ -16,10 +16,10 @@
 
 <script type="text/javascript">
     // https://codepen.io/KryptoniteDove/post/load-json-file-locally-using-pure-javascript
-    function loadJSON(callback, file) {
+    function loadJSON(file, callback) {
         var xobj = new XMLHttpRequest();
         xobj.overrideMimeType("application/json");
-        xobj.open('GET', file + '?ts=' + new Date().getTime(), false);
+        xobj.open('GET', file + '?ts=' + new Date().getTime(), true);
         xobj.onreadystatechange = function () {
             if (xobj.readyState == 4 && xobj.status == "200") {
                 // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
@@ -29,58 +29,58 @@
         xobj.send(null);
     }
 
-    var json;
+    loadJSON("/local/z-wave-graph.json",
+        function (response) {
+            // Parse JSON string into object
+            var json = JSON.parse(response);
 
-    loadJSON(function (response) {
-        // Parse JSON string into object
-        json = JSON.parse(response);
-    }, "/local/z-wave-graph.json");
+            var data = {
+                nodes: json['nodes'],
+                edges: json['edges']
+            };
 
-    var data = {
-        nodes: json['nodes'],
-        edges: json['edges']
-    };
+            var options = {
+                configure: {
+                    enabled: true,
+                    filter: 'physics, layout',
+                    showButton: true
+                },
 
-    var options = {
-        configure: {
-            enabled: true,
-            filter: 'physics, layout',
-            showButton: true
-        },
+                layout: {
+                    hierarchical: {
+                        enabled: true,
+                        direction: "DU",
+                        nodeSpacing: 25,
+                        sortMethod: "directed"
+                    },
+                },
+                physics: {
+                    hierarchicalRepulsion: {
+                        centralGravity: 0,
+                        springLength: 100,
+                        springConstant: 0.01,
+                        nodeDistance: 100
+                    },
+                    minVelocity: 0.75,
+                    solver: "hierarchicalRepulsion"
+                },
 
-        layout: {
-            hierarchical: {
-                enabled: true,
-                direction: "DU",
-                sortMethod: "directed"
-            },
-        },
-        physics: {
-            hierarchicalRepulsion: {
-                centralGravity: 0,
-                springLength: 100,
-                springConstant: 0.01,
-                nodeDistance: 100
-            },
-            minVelocity: 0.75,
-            solver: "hierarchicalRepulsion"
-        },
+                edges: {
+                    color: {
+                        inherit: "to"
+                    },
+                    scaling: {
+                        min: 2,
+                        max: 5
+                    }
+                }
+            };
 
-        edges: {
-            color: {
-                inherit: "to"
-            },
-            scaling: {
-                min: 2,
-                max: 5
-            }
-        }
-    };
+            // create a network
+            var container = document.getElementById('mynetwork');
 
-    // create a network
-    var container = document.getElementById('mynetwork');
-
-    // initialize your network!
-    var network = new vis.Network(container, data, options);
+            // initialize your network!
+            var network = new vis.Network(container, data, options);
+        });
 </script>
 </body>
