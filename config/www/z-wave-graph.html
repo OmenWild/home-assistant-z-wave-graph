@@ -6,6 +6,7 @@
     <style type="text/css">
         #mynetwork {
             border: 1px solid lightgray;
+            height: 75%;
         }
     </style>
 </head>
@@ -18,7 +19,7 @@
     function loadJSON(callback, file) {
         var xobj = new XMLHttpRequest();
         xobj.overrideMimeType("application/json");
-        xobj.open('GET', file +'?ts=' + new Date().getTime(), false); // Replace 'my_data' with the path to your file
+        xobj.open('GET', file + '?ts=' + new Date().getTime(), false);
         xobj.onreadystatechange = function () {
             if (xobj.readyState == 4 && xobj.status == "200") {
                 // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
@@ -30,7 +31,7 @@
 
     var json;
 
-    loadJSON(function (response,) {
+    loadJSON(function (response) {
         // Parse JSON string into object
         json = JSON.parse(response);
     }, "/local/z-wave-graph.json");
@@ -50,7 +51,7 @@
         layout: {
             hierarchical: {
                 enabled: true,
-                "direction": "DU",
+                direction: "DU",
                 sortMethod: "directed"
             },
         },
@@ -66,6 +67,9 @@
         },
 
         edges: {
+            color: {
+                inherit: "to"
+            },
             scaling: {
                 min: 2,
                 max: 5
