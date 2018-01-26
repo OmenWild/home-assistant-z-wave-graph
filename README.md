@@ -6,7 +6,10 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ## Update Info
 
-2018-01-25: 21:00 PST
+2018-01-26:
+ 1. Default to no SSL for the API connection. You will need to add `--ssl` to your invocation if your HA uses SSL directly (i.e. not through a proxy). 
+
+2018-01-25:
  1. No longer using Graphviz, neither the system package nor the Python module are required. 
  1. `config/www/svg-pan-zoom.min.js` is no longer needed, you may delete it.
 
