@@ -43,18 +43,22 @@ class Node(object):
         except KeyError:
             pass
 
+        self.forwarder = True
+        if self.attrs['is_awake'] == 'false' or \
+                self.attrs['is_ready'] == 'false' or \
+                self.attrs['is_failed'] == 'true' or \
+                'listening' not in self.attrs['capabilities']:
+            self.forwarder = False
 
     @property
     def id(self):
         return self.node_id
-
 
     def __str__(self):
         if self.rank == 1:
             return "Z-Wave Hub\n%s" % datetime.datetime.now().strftime('%b %d\n%T')
         else:
             return self.attrs['friendly_name'].replace(' ', "\n")
-
 
     def title(self):
         title = "<b>%s</b><br/>" % self.attrs['friendly_name']
@@ -73,7 +77,6 @@ class Node(object):
 
         return title
 
-
     def __iter__(self):
         yield self.neighbors
 
@@ -84,13 +87,11 @@ class Nodes(object):
         self.primary_controller = None
         self.ranked = False
 
-
     def add(self, attrs):
         node = Node(attrs)
         self.nodes[node.node_id] = node
         if node.primary_controller:
             self.primary_controller = node
-
 
     def create_ranks(self):
         # Dump everything into networkx to get depth
@@ -111,18 +112,17 @@ class Nodes(object):
                 node.shortest = [p for p in nx.all_shortest_paths(G, 1, key)]
                 node.rank = len(node.shortest[0])
             except (nx.exception.NetworkXNoPath, IndexError):
-                # Unconnected devices (remotes) may have no path.
+                # Unconnected devices (remotes) may have no current path.
                 node.rank = 0
 
         self.ranked = True
-
 
     def __iter__(self):
         # Iterate over all the nodes, regardless of rank.
         if not self.ranked:
             self.create_ranks()
 
-        for rank in [1, 2, 3, 4]:
+        for rank in [1, 2, 3, 4, 5, 6]:
             for key in sorted(self.nodes):
                 node = self.nodes[key]
                 if node.rank == rank:
@@ -130,7 +130,7 @@ class Nodes(object):
 
 
 class ZWave(object):
-    def __init__(self, config):
+    def __init__(self, config, args):
         self.nodes = Nodes()
         self.json = {'nodes': [], 'edges': []}
 
@@ -143,7 +143,6 @@ class ZWave(object):
         self.filename = 'z-wave-graph'
 
         api_password = None
-        use_ssl = False
         base_url = 'localhost'
 
         if self.haconf['http'] is not None and 'base_url' in self.haconf['http']:
@@ -155,18 +154,13 @@ class ZWave(object):
             if 'api_password' in self.haconf['http']:
                 api_password = str(self.haconf['http']['api_password'])
 
-            if 'ssl_key' in self.haconf['http']:
-                use_ssl = True
-
-        self.api = remote.API(base_url, api_password, use_ssl=use_ssl)
+        self.api = remote.API(base_url, api_password, port=args.port, use_ssl=args.ssl)
 
         self._get_entities()
         self._build_dot()
 
-
     def add(self, node):
         return self.nodes.add(node)
-
 
     def _get_entities(self):
 
@@ -174,7 +168,6 @@ class ZWave(object):
         for entity in entities:
             if entity.entity_id.startswith('zwave'):
                 self.add(entity.attributes)
-
 
     def _build_dot(self):
         for node in self.nodes:
@@ -204,12 +197,15 @@ class ZWave(object):
                     if node.id == edge:
                         continue
 
+                    if not self.nodes.nodes[edge].forwarder:
+                        # Skip edges that go through devices that look like they don't forward.
+                        continue
+
                     config['value'] = 5 - node.rank
 
                     if (node.id, edge) not in graphed and (edge, node.id) not in graphed:
                         self.json['edges'].append({'from': node.id, 'to': edge, **config})
                         graphed[(node.id, edge)] = True
-
 
     def render(self):
         # self.dot.render(filename=self.filename, directory=self.directory
@@ -228,12 +224,14 @@ if __name__ == '__main__':
         if os.path.isfile(expanded):
             config = expanded
 
-    if not config:
-        parser = argparse.ArgumentParser()
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-c', '--config', help='path to configuration.yaml')
-        args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Generate a Z-Wave mesh from your Home Assistant system.')
+    parser.add_argument('--config', help='path to configuration.yaml')
+    parser.add_argument('--port', type=int, default=8123, help='use if you run HA on a non-standard port')
+    parser.add_argument('--no-ssl', action="store_false", dest='ssl', default=True, help='force a non-SSL API connection')
 
+    args = parser.parse_args()
+
+    if not config:
         if 'config' not in args or not args.config:
             raise ValueError("Unable to automatically find configuration.yaml, you have to specify it with -c/--config")
 
@@ -247,5 +245,5 @@ if __name__ == '__main__':
         if not config:
             raise ValueError("Unable to find configuration.yaml in specified location.")
 
-    zwave = ZWave(config)
+    zwave = ZWave(config, args)
     zwave.render()
