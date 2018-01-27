@@ -121,15 +121,15 @@ class Nodes(object):
         self.ranked = True
 
     def __iter__(self):
-        # Iterate over all the nodes, regardless of rank.
+        # Iterate over all the nodes, rank by rank.
+
         if not self.ranked:
             self.create_ranks()
 
+        # Z-Wave networks can be 6 layers deep, the hub, up to 4 hops, and the destination.
         for rank in [1, 2, 3, 4, 5, 6]:
-            for key in sorted(self.nodes, key=int):
-                node = self.nodes[key]
-                if node.rank == rank:
-                    yield node
+            for node in sorted(filter(lambda x: x.rank == rank, self.nodes.values()), key=lambda k: k.id):
+                yield node
 
 
 class ZWave(object):
