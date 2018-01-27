@@ -227,7 +227,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate a Z-Wave mesh from your Home Assistant system.')
     parser.add_argument('--config', help='path to configuration.yaml')
     parser.add_argument('--port', type=int, default=8123, help='use if you run HA on a non-standard port')
-    parser.add_argument('--no-ssl', action="store_false", dest='ssl', default=False, help='force a non-SSL API connection')
+    parser.add_argument('--ssl', action="store_true", dest='ssl', default=False, help='force a SSL API connection')
 
     args = parser.parse_args()
 
