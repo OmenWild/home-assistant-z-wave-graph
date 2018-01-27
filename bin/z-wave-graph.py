@@ -111,7 +111,7 @@ class Nodes(object):
         # Finally, find the shortest path
         for key, node in self.nodes.items():
             try:
-                node.shortest = [p for p in nx.all_shortest_paths(G, 1, key)]
+                node.shortest = [p for p in nx.all_shortest_paths(G, key, 1)]
                 node.rank = len(node.shortest[0])
             except (nx.exception.NetworkXNoPath, IndexError):
                 # Unconnected devices (remotes) may have no current path.
@@ -166,7 +166,6 @@ class ZWave(object):
 
         self._build_dot()
 
-
     def debug(self):
         rank = -1
         for node in self.nodes:
@@ -178,7 +177,6 @@ class ZWave(object):
             for path in node.shortest:
                 print("   %s" % path)
             print()
-
 
     def add(self, node):
         return self.nodes.add(node)
@@ -208,12 +206,10 @@ class ZWave(object):
 
             self.json['nodes'].append({'id': node.id, **config})
 
-        # Tracked graphed connections to eliminate duplicates
-        graphed = {}
-
         for node in self.nodes:
             for path in node.shortest:
-                for edge in path[-2:]:
+                for edge in path[1:2]:  # Only graph the first hop in each node.
+
                     config = {}
                     if node.id == edge:
                         continue
@@ -224,9 +220,8 @@ class ZWave(object):
 
                     config['value'] = 5 - node.rank
 
-                    if (node.id, edge) not in graphed and (edge, node.id) not in graphed:
-                        self.json['edges'].append({'from': node.id, 'to': edge, **config})
-                        graphed[(node.id, edge)] = True
+                    self.json['edges'].append({'from': node.id, 'to': edge, **config})
+
 
     def render(self):
         # self.dot.render(filename=self.filename, directory=self.directory
