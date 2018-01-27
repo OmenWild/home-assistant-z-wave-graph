@@ -44,9 +44,9 @@ class Node(object):
             pass
 
         self.forwarder = True
-        if self.attrs['is_awake'] == 'false' or \
-                self.attrs['is_ready'] == 'false' or \
-                self.attrs['is_failed'] == 'true' or \
+        if self.attrs['is_awake'] == False or \
+                self.attrs['is_ready'] == False or \
+                self.attrs['is_failed'] == True or \
                 'listening' not in self.attrs['capabilities']:
             self.forwarder = False
 
@@ -58,7 +58,7 @@ class Node(object):
         if self.primary_controller:
             return "Z-Wave Hub\n%s" % datetime.datetime.now().strftime('%b %d\n%H:%M')
         else:
-            return self.attrs['friendly_name'].replace(' ', "\n")
+            return ("%s%s" % (self.attrs['friendly_name'], ' !!!' if self.attrs['is_failed'] else '')).replace(' ', "\n")
 
     def title(self):
         title = "<b>%s</b><br/>" % self.attrs['friendly_name']
@@ -67,6 +67,9 @@ class Node(object):
 
         if self.attrs['is_zwave_plus']:
             title += "<b>+</b>"
+
+        if self.attrs['is_failed']:
+            title += "<br/><b>Failed: TRUE</b>"
 
         title += "<br/>Product Name: %s" % self.attrs['product_name']
 
@@ -113,7 +116,7 @@ class Nodes(object):
             except (nx.exception.NetworkXNoPath, IndexError):
                 # Unconnected devices (remotes) may have no current path.
                 node.rank = 1
-                node.shortest = [[]]
+                node.shortest = []
 
         self.ranked = True
 
@@ -123,7 +126,7 @@ class Nodes(object):
             self.create_ranks()
 
         for rank in [1, 2, 3, 4, 5, 6]:
-            for key in sorted(self.nodes):
+            for key in sorted(self.nodes, key=int):
                 node = self.nodes[key]
                 if node.rank == rank:
                     yield node
@@ -157,7 +160,25 @@ class ZWave(object):
         self.api = remote.API(base_url, api_password, port=args.port, use_ssl=args.ssl)
 
         self._get_entities()
+
+        if args.debug:
+            self.debug()
+
         self._build_dot()
+
+
+    def debug(self):
+        rank = -1
+        for node in self.nodes:
+            if node.rank != rank:
+                print("\n\nvvvvvvvvvv %d vvvvvvvvvv\n" % node.rank)
+                rank = node.rank
+
+            print("%d => %s" % (node.id, node.neighbors))
+            for path in node.shortest:
+                print("   %s" % path)
+            print()
+
 
     def add(self, node):
         return self.nodes.add(node)
@@ -228,6 +249,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', help='path to configuration.yaml')
     parser.add_argument('--port', type=int, default=8123, help='use if you run HA on a non-standard port')
     parser.add_argument('--ssl', action="store_true", dest='ssl', default=False, help='force a SSL API connection')
+    parser.add_argument('--debug', action="store_true", dest='debug', default=False, help='print debug output')
 
     args = parser.parse_args()
 
