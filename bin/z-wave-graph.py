@@ -134,6 +134,7 @@ class Nodes(object):
 
 class ZWave(object):
     def __init__(self, config, args):
+        self.args = args
         self.nodes = Nodes()
         self.json = {'nodes': [], 'edges': []}
 
@@ -157,16 +158,16 @@ class ZWave(object):
             if 'api_password' in self.haconf['http']:
                 api_password = str(self.haconf['http']['api_password'])
 
-        self.api = remote.API(base_url, api_password, port=args.port, use_ssl=args.ssl)
+        self.api = remote.API(base_url, api_password, port=self.args.port, use_ssl=self.args.ssl)
 
         self._get_entities()
 
-        if args.debug:
-            self.debug()
+        if self.args.debug:
+            self.dump_nodes()
 
         self._build_dot()
 
-    def debug(self):
+    def dump_nodes(self):
         rank = -1
         for node in self.nodes:
             if node.rank != rank:
@@ -222,12 +223,13 @@ class ZWave(object):
 
                     self.json['edges'].append({'from': node.id, 'to': edge, **config})
 
-
     def render(self):
-        # self.dot.render(filename=self.filename, directory=self.directory
+        if self.args.debug:
+            print(self.json)
+
         fp = os.path.join(self.directory, self.filename + '.json')
         with open(fp, 'w') as outfile:
-            pretty = json.dump(self.json, outfile, indent=4, sort_keys=True)
+            json.dump(self.json, outfile, indent=4, sort_keys=True)
 
 
 if __name__ == '__main__':
