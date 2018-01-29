@@ -154,9 +154,8 @@ class ZWave(object):
             if ':' in base_url:
                 base_url = base_url.split(':')[0]
 
-        if base_url != 'localhost':
-            if 'api_password' in self.haconf['http']:
-                api_password = str(self.haconf['http']['api_password'])
+        if self.haconf['http'] is not None and 'api_password' in self.haconf['http']:
+            api_password = str(self.haconf['http']['api_password'])
 
         self.api = remote.API(base_url, api_password, port=self.args.port, use_ssl=self.args.ssl)
 
