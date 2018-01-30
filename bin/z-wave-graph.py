@@ -29,7 +29,6 @@ class Node(object):
         self.attrs = attrs
         self.rank = None
 
-        self.node_id = self.attrs['node_id']
         try:
             self.neighbors = sorted(self.attrs['neighbors'])
         except KeyError:
@@ -44,11 +43,18 @@ class Node(object):
             pass
 
         self.forwarder = True
-        if self.attrs['is_awake'] == False or \
-                self.attrs['is_ready'] == False or \
-                self.attrs['is_failed'] == True or \
-                'listening' not in self.attrs['capabilities']:
+        if self.is_awake == False or \
+                self.is_ready == False or \
+                self.is_failed == True or \
+                'listening' not in self.capabilities:
             self.forwarder = False
+
+    def __getattr__(self, name):
+        if name in self.attrs:
+            return self.attrs[name]
+        else:
+            return None
+
 
     @property
     def id(self):
@@ -128,7 +134,7 @@ class Nodes(object):
 
         # Z-Wave networks can be 6 layers deep, the hub, up to 4 hops, and the destination.
         for rank in [1, 2, 3, 4, 5, 6]:
-            for node in sorted(filter(lambda x: x.rank == rank, self.nodes.values()), key=lambda k: k.id):
+            for node in sorted(filter(lambda x: x.rank == rank, self.nodes.values()), key=lambda k: k.node_name):
                 yield node
 
 
@@ -137,9 +143,6 @@ class ZWave(object):
         self.args = args
         self.nodes = Nodes()
         self.json = {'nodes': [], 'edges': []}
-
-        self.neighbors = {}
-        self.primary_controller = []
 
         self.haconf = homeassistant.config.load_yaml_config_file(config)
 
@@ -182,7 +185,6 @@ class ZWave(object):
         return self.nodes.add(node)
 
     def _get_entities(self):
-
         entities = remote.get_states(self.api)
         for entity in entities:
             if entity.entity_id.startswith('zwave'):
