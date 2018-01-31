@@ -6,6 +6,14 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ## Update Info
 
+2018-01-31:
+ 1. **BREAKING:** The `--ssl` and `--port` flags have been removed. Set your `base_url` appropriately and it will work:
+    * http://localhost
+    * localhost:80
+    * http://localhost:8123
+    * https://localhost:8123
+    * https://host.example.com:443
+
 2018-01-26:
  1. Default to no SSL for the API connection. You will need to add `--ssl` to your invocation if your HA uses SSL directly (i.e. not through a proxy). 
 

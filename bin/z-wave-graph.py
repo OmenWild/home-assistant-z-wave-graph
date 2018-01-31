@@ -6,6 +6,8 @@ import json
 import os.path
 import sys
 
+import re
+
 
 def need(what):
     print("Error unable to import the module `%s', please pip install it" % what, end='')
@@ -22,7 +24,7 @@ except ImportError:
 
 import homeassistant.config
 import homeassistant.remote as remote
-
+import homeassistant.const
 
 class Node(object):
     def __init__(self, attrs):
@@ -147,20 +149,30 @@ class ZWave(object):
         self.haconf = homeassistant.config.load_yaml_config_file(config)
 
         self.directory = os.path.join(os.path.dirname(config), 'www')
-        self.filename = 'z-wave-graph'
+        self.filename = 'z-wave-graph.json'
 
+        # API connection necessities.
         api_password = None
-        base_url = 'localhost'
+        base_url = 'http://localhost'
+        port = homeassistant.const.SERVER_PORT
 
         if self.haconf['http'] is not None and 'base_url' in self.haconf['http']:
             base_url = self.haconf['http']['base_url']
-            if ':' in base_url:
-                base_url = base_url.split(':')[0]
 
         if self.haconf['http'] is not None and 'api_password' in self.haconf['http']:
             api_password = str(self.haconf['http']['api_password'])
 
-        self.api = remote.API(base_url, api_password, port=self.args.port, use_ssl=self.args.ssl)
+        # If the base_url ends with a port, then strip it and set the port.
+        # remote.API adds the default port if port= is not set.
+        m = re.match(r'(^.*)(:(\d+))$', base_url)
+        if m:
+            base_url = m.group(1)
+            port = m.group(3)
+
+        self.api = remote.API(base_url, api_password, port=port)
+        if remote.validate_api(self.api).value != 'ok':
+            print("Error, unable to connect to the API: %s" % remote.validate_api(self.api))
+            sys.exit(1)
 
         self._get_entities()
 
@@ -228,9 +240,9 @@ class ZWave(object):
         if self.args.debug:
             print(self.json)
 
-        fp = os.path.join(self.directory, self.filename + '.json')
+        fp = os.path.join(self.directory, self.filename)
         with open(fp, 'w') as outfile:
-            json.dump(self.json, outfile, indent=4, sort_keys=True)
+            json.dump(self.json, outfile, indent=2, sort_keys=True)
 
 
 if __name__ == '__main__':
@@ -245,10 +257,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Generate a Z-Wave mesh from your Home Assistant system.')
     parser.add_argument('--config', help='path to configuration.yaml')
-    parser.add_argument('--port', type=int, default=8123, help='use if you run HA on a non-standard port')
-    parser.add_argument('--ssl', action="store_true", dest='ssl', default=False, help='force a SSL API connection')
     parser.add_argument('--debug', action="store_true", dest='debug', default=False, help='print debug output')
-
     args = parser.parse_args()
 
     if not config:
