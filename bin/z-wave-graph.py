@@ -4,9 +4,8 @@ import argparse
 import datetime
 import json
 import os.path
-import sys
-
 import re
+import sys
 
 
 def need(what):
@@ -26,19 +25,20 @@ import homeassistant.config
 import homeassistant.remote as remote
 import homeassistant.const
 
+
 class Node(object):
     def __init__(self, attrs):
         self.attrs = attrs
         self.rank = None
 
         try:
-            self.neighbors = sorted(self.attrs['neighbors'])
+            self.neighbors = sorted(self.neighbors)
         except KeyError:
             self.neighbors = []
 
         self.primary_controller = False
         try:
-            if 'primaryController' in self.attrs['capabilities']:
+            if 'primaryController' in self.capabilities:
                 # Make any Z-Wave node that is a primaryController stand out.
                 self.primary_controller = True
         except KeyError:
@@ -51,42 +51,45 @@ class Node(object):
                 'listening' not in self.capabilities:
             self.forwarder = False
 
+
     def __getattr__(self, name):
-        if name in self.attrs:
-            return self.attrs[name]
-        else:
-            return None
+        return self.attrs[name]
 
 
     @property
     def id(self):
         return self.node_id
 
+
     def __str__(self):
         if self.primary_controller:
             return "Z-Wave Hub\n%s" % datetime.datetime.now().strftime('%b %d\n%H:%M')
         else:
-            return ("%s%s" % (self.attrs['friendly_name'], ' !!!' if self.attrs['is_failed'] else '')).replace(' ', "\n")
+            return ("%s%s" % (self.friendly_name, '!!!' if self.is_failed else '')).replace(' ', "\n")
+
 
     def title(self):
-        title = "<b>%s</b><br/>" % self.attrs['friendly_name']
+        title = ""
+
+        if self.is_failed:
+            title += "<b>FAILED: </b>"
+
+        title += "<b>%s</b><br/>" % self.friendly_name
 
         title += "Node: %s" % self.node_id
 
-        if self.attrs['is_zwave_plus']:
+        if self.is_zwave_plus:
             title += "<b>+</b>"
 
-        if self.attrs['is_failed']:
-            title += "<br/><b>Failed: TRUE</b>"
-
-        title += "<br/>Product Name: %s" % self.attrs['product_name']
+        title += "<br/>Product Name: %s" % self.product_name
 
         try:
-            title += "<br/>Battery: %s%%" % self.attrs['battery_level']
+            title += "<br/>Battery: %s%%" % self.battery_level
         except KeyError:
             pass
 
         return title
+
 
     def __iter__(self):
         yield self.neighbors
@@ -98,11 +101,13 @@ class Nodes(object):
         self.primary_controller = None
         self.ranked = False
 
+
     def add(self, attrs):
         node = Node(attrs)
         self.nodes[node.node_id] = node
         if node.primary_controller:
             self.primary_controller = node
+
 
     def create_ranks(self):
         # Dump everything into networkx to get depth
@@ -127,6 +132,7 @@ class Nodes(object):
                 node.shortest = []
 
         self.ranked = True
+
 
     def __iter__(self):
         # Iterate over all the nodes, rank by rank.
@@ -181,6 +187,7 @@ class ZWave(object):
 
         self._build_dot()
 
+
     def dump_nodes(self):
         rank = -1
         for node in self.nodes:
@@ -193,14 +200,17 @@ class ZWave(object):
                 print("   %s" % path)
             print()
 
+
     def add(self, node):
         return self.nodes.add(node)
+
 
     def _get_entities(self):
         entities = remote.get_states(self.api)
         for entity in entities:
             if entity.entity_id.startswith('zwave'):
                 self.add(entity.attributes)
+
 
     def _build_dot(self):
         for node in self.nodes:
@@ -226,15 +236,19 @@ class ZWave(object):
 
                     config = {}
                     if node.id == edge:
+                        # Skip myself
                         continue
 
                     if not self.nodes.nodes[edge].forwarder:
                         # Skip edges that go through devices that look like they don't forward.
                         continue
 
-                    config['value'] = 5 - node.rank
+                    if node.averageRequestRTT > 0:
+                        config['value'] = 1.0 / node.averageRequestRTT
+                    config['title'] = '%s: %dms' % ('averageRequestRTT', node.averageRequestRTT)
 
                     self.json['edges'].append({'from': node.id, 'to': edge, **config})
+
 
     def render(self):
         if self.args.debug:
