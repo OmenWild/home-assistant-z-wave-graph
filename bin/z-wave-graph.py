@@ -6,6 +6,13 @@ import json
 import os.path
 import re
 import sys
+import locale
+locale.setlocale(locale.LC_ALL, '')
+
+# Needed for the docker image:
+# https://community.home-assistant.io/t/graph-your-z-wave-mesh-python-auto-update/40549/87?u=omenwild
+if os.path.isdir('/usr/src/app'):
+    sys.path.append('/usr/src/app')
 
 
 def need(what):
@@ -31,10 +38,10 @@ class Node(object):
         self.attrs = attrs
         self.rank = None
 
-        try:
-            self.neighbors = sorted(self.neighbors)
-        except KeyError:
-            self.neighbors = []
+        self.neighbors = []
+        # Special case this one so __getattr__ can return None intead of KeyError for other lookups.
+        if 'neighbors' in self.attrs:
+            self.neighbors = sorted(self.attrs['neighbors'])
 
         self.primary_controller = False
         try:
@@ -53,7 +60,10 @@ class Node(object):
 
 
     def __getattr__(self, name):
-        return self.attrs[name]
+        if name in self.attrs:
+            return self.attrs[name]
+        else:
+            return None
 
 
     @property
@@ -65,7 +75,7 @@ class Node(object):
         if self.primary_controller:
             return "Z-Wave Hub\n%s" % datetime.datetime.now().strftime('%b %d\n%H:%M')
         else:
-            return ("%s%s" % (self.friendly_name, '!!!' if self.is_failed else '')).replace(' ', "\n")
+            return "{}{!s} ({:n})".format(self.friendly_name, '!!!' if self.is_failed else '', self.averageRequestRTT).replace(' ', "\n")
 
 
     def title(self):
@@ -83,10 +93,10 @@ class Node(object):
 
         title += "<br/>Product Name: %s" % self.product_name
 
-        try:
+        if self.battery_level:
             title += "<br/>Battery: %s%%" % self.battery_level
-        except KeyError:
-            pass
+
+        title += "<br/><b>Average Request RTT:</b> {:n}ms".format(self.averageRequestRTT)
 
         return title
 
@@ -228,26 +238,25 @@ class ZWave(object):
                 config['borderWidth'] = 2
                 config['fixed'] = True
 
-            self.json['nodes'].append({'id': node.id, **config})
+            self.json['nodes'].append({'id': node.friendly_name, **config})
 
         for node in self.nodes:
             for path in node.shortest:
                 for edge in path[1:2]:  # Only graph the first hop in each node.
+                    edge = self.nodes.nodes[edge]
 
                     config = {}
-                    if node.id == edge:
+                    if node == edge:
                         # Skip myself
                         continue
 
-                    if not self.nodes.nodes[edge].forwarder:
+                    if not edge.forwarder:
                         # Skip edges that go through devices that look like they don't forward.
                         continue
 
-                    if node.averageRequestRTT > 0:
-                        config['value'] = 1.0 / node.averageRequestRTT
-                    config['title'] = '%s: %dms' % ('averageRequestRTT', node.averageRequestRTT)
+                    # config['value'] = 1.0 / node.rank
 
-                    self.json['edges'].append({'from': node.id, 'to': edge, **config})
+                    self.json['edges'].append({'from': node.friendly_name, 'to': edge.friendly_name, **config})
 
 
     def render(self):
@@ -269,10 +278,26 @@ if __name__ == '__main__':
         if os.path.isfile(expanded):
             config = expanded
 
-    parser = argparse.ArgumentParser(description='Generate a Z-Wave mesh from your Home Assistant system.')
+    removed_txt = "Instead of --ssl or --port, set base_url appropriately, e.g.:\nhttp:\n  base_url: https://localhost:443\n\nin your configuration.yaml"
+
+    parser = argparse.ArgumentParser(
+        description='Generate a Z-Wave mesh from your Home Assistant system.',
+        epilog=removed_txt)
     parser.add_argument('--config', help='path to configuration.yaml')
     parser.add_argument('--debug', action="store_true", dest='debug', default=False, help='print debug output')
+
+    parser.add_argument('--port', type=int, default=-1, help=argparse.SUPPRESS)
+    parser.add_argument('--ssl', action="store_true", help=argparse.SUPPRESS)
+
     args = parser.parse_args()
+
+    if args.ssl:
+        print("ERROR: --ssl option no longer supported.")
+    if args.port != -1:
+        print("ERROR: --port option no longer supported.")
+    if args.ssl or args.port != -1:
+        print("\n" + removed_txt)
+        sys.exit(1)
 
     if not config:
         if 'config' not in args or not args.config:

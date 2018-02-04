@@ -6,8 +6,14 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ## Update Info
 
+2018-02-03:
+ * Can work with the Docker image, but requires some hand-tuning. See the `Docker Image` section below.
+ * Show the averageRequestRTT in () under the node name and in the mouse-over.
+ * Revert the changes to make the edge width dependent on RTT. It was just too messy and did not add anything.
+ * Edge width is now fixed. This helps see where the connections go when hovering.
+
 2018-01-31:
- 1. **BREAKING:** The `--ssl` and `--port` flags have been removed. Set your `base_url` appropriately and it will work:
+ * **BREAKING:** The `--ssl` and `--port` flags have been removed. Set your `base_url` appropriately and it will work:
     * http://localhost
     * localhost:80
     * http://localhost:8123
@@ -15,11 +21,11 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
     * https://host.example.com:443
 
 2018-01-26:
- 1. Default to no SSL for the API connection. You will need to add `--ssl` to your invocation if your HA uses SSL directly (i.e. not through a proxy). 
+ * Default to no SSL for the API connection. You will need to add `--ssl` to your invocation if your HA uses SSL directly (i.e. not through a proxy).
 
 2018-01-25:
- 1. No longer using Graphviz, neither the system package nor the Python module are required. 
- 1. `config/www/svg-pan-zoom.min.js` is no longer needed, you may delete it.
+ * No longer using Graphviz, neither the system package nor the Python module are required.
+ * `config/www/svg-pan-zoom.min.js` is no longer needed, you may delete it.
 
 ## Install
 Install the `networkx` Python module:
@@ -37,14 +43,21 @@ z_wave_graph_url: http://YOUR_DOMAIN_HERE:8123/local/z-wave-graph.html
 ```
 The Python script loads your HA configuration to try to pull out the details it needs. Some installations require more tweaks. See `~/bin/z-wave-graph.py --help` for command line options.
 
-Put all the files in their correct location (assuming you're using split configuration):
+Put all the files in their correct location (assuming you're using a split configuration):
 ```
 automation: !include_dir_merge_list automations/
 shell_command: !include_dir_merge_named shell_commands/
 panel_iframe: !include_dir_merge_named panel_iframe/
 ```
 
-Otherwise you will have to put the fiddly bit into the right place by hand.
+Otherwise you will have to put the fiddly bits into the right place by hand.
+
+### Docker Image
+
+Thanks to a diligent [HA forum member](https://community.home-assistant.io/t/graph-your-z-wave-mesh-python-auto-update/40549/87?u=omenwild) the mystery of the script not running in Docker images has been solved. One fix is in the code. The other you will have to apply at your end to the `shell_command`:
+```
+z_wave_graph: /usr/local/bin/python3 /config/**<YOUR-PATH>**/z-wave-graph.py
+```
 
 ## Running
 
