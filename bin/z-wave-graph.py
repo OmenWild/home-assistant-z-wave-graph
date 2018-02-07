@@ -96,7 +96,7 @@ class Node(object):
         if self.battery_level:
             title += "<br/>Battery: %s%%" % self.battery_level
 
-        title += "<br/><b>Average Request RTT:</b> {:n}ms".format(self.averageRequestRTT)
+        title += "<br/>Average Request RTT: {:n}ms".format(self.averageRequestRTT)
 
         return title
 
@@ -238,7 +238,7 @@ class ZWave(object):
                 config['borderWidth'] = 2
                 config['fixed'] = True
 
-            self.json['nodes'].append({'id': node.friendly_name, **config})
+            self.json['nodes'].append({'id': "{} (#{})".format(node.friendly_name, node.id), **config})
 
         for node in self.nodes:
             for path in node.shortest:
@@ -255,8 +255,9 @@ class ZWave(object):
                         continue
 
                     # config['value'] = 1.0 / node.rank
-
-                    self.json['edges'].append({'from': node.friendly_name, 'to': edge.friendly_name, **config})
+                    _from = "{} (#{})".format(node.friendly_name, node.id)
+                    _to = "{} (#{})".format(edge.friendly_name, edge.id)
+                    self.json['edges'].append({'from': _from, 'to': _to, **config})
 
 
     def render(self):
