@@ -7,6 +7,7 @@ import os.path
 import re
 import sys
 import locale
+import site
 locale.setlocale(locale.LC_ALL, '')
 
 # Needed for the docker image:
@@ -22,6 +23,9 @@ def need(what):
     print(".\n")
     sys.exit(1)
 
+# Add persistent site packages if in docker
+if os.path.isdir('/config/deps/lib/python3.6/site-packages'):
+    site.addsitedir('/config/deps/lib/python3.6/site-packages')
 
 try:
     import networkx as nx
