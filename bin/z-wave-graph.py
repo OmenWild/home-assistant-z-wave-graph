@@ -164,8 +164,8 @@ class ZWave(object):
 
         self.haconf = homeassistant.config.load_yaml_config_file(config)
 
-        self.directory = os.path.join(os.path.dirname(config), 'www')
-        self.filename = 'z-wave-graph.json'
+        self.outpath = args.outpath or \
+            os.path.join(os.path.dirname(config), 'www', 'z-wave-graph.json')
 
         # API connection necessities.
         api_password = None
@@ -264,8 +264,7 @@ class ZWave(object):
         if self.args.debug:
             print(self.json)
 
-        fp = os.path.join(self.directory, self.filename)
-        with open(fp, 'w') as outfile:
+        with open(self.outpath, 'w') as outfile:
             json.dump(self.json, outfile, indent=2, sort_keys=True)
 
 
@@ -289,7 +288,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--port', type=int, default=-1, help=argparse.SUPPRESS)
     parser.add_argument('--ssl', action="store_true", help=argparse.SUPPRESS)
-
+    parser.add_argument('--outpath', type=str, default=None, help='path to write .json file output to')
     args = parser.parse_args()
 
     if args.ssl:
