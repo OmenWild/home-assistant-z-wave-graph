@@ -11,9 +11,12 @@ RUN pip3 install networkx
 
 # Copy data for add-on
 COPY bin/z-wave-graph.py /
+
 COPY config/www/z-wave-graph.html /
+COPY config/shell_commands/z-wave-graph-hassio-addon.yaml shell_commands_z-wave-graph.yaml
+COPY config/automations/z-wave-graph.yaml automations_z-wave-graph.yaml
+
 COPY run.sh /
-COPY config/shell_commands/z-wave-graph.yaml shell_commands_z-wave-graph.yaml
 
 RUN chmod a+x /run.sh
 
