@@ -175,6 +175,7 @@ class ZWave(object):
         api_password = None
         base_url = 'http://localhost'
         port = homeassistant.const.SERVER_PORT
+        use_ssl = False
 
         if self.haconf['http'] is not None and 'base_url' in self.haconf['http']:
             base_url = self.haconf['http']['base_url']
@@ -184,12 +185,18 @@ class ZWave(object):
 
         # If the base_url ends with a port, then strip it and set the port.
         # remote.API adds the default port if port= is not set.
-        m = re.match(r'(^.*)(:(\d+))$', base_url)
-        if m:
-            base_url = m.group(1)
-            port = m.group(3)
+        m = re.match(r'^(https?)?(?::\/\/)?([\da-z\.-]+\.?[a-z\.]{2,6}):?(\d*)?([\/\w \.-]*)$', base_url)
+        base_url = m.group(2)
 
-        self.api = remote.API(base_url, api_password, port=port)
+        if m.group(3) != '':
+            port = int(m.group(3))
+
+        if m.group(1) == 'https':
+            use_ssl = True
+            if m.group(3) == '':
+                port = 443
+
+        self.api = remote.API(base_url, api_password, port, use_ssl)
         if remote.validate_api(self.api).value != 'ok':
             print("Error, unable to connect to the API: %s" % remote.validate_api(self.api))
             sys.exit(1)
