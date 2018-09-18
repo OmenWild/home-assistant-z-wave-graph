@@ -177,11 +177,16 @@ class ZWave(object):
         self.api_password = None
         self.base_url = 'http://localhost:%s' % homeassistant.const.SERVER_PORT
 
+        if 'http' not in self.haconf:
+            raise RuntimeError('http: must be enabled in your hass configuration.')
+
         if self.haconf['http'] is not None and 'base_url' in self.haconf['http']:
             self.base_url = self.haconf['http']['base_url']
 
-        if self.haconf['api'] is not None and 'api_password' in self.haconf['api']:
-            self.api_password = str(self.haconf['api']['api_password'])
+        if 'HASSIO_TOKEN' in os.environ:
+            self.api_password = os.environ['HASSIO_TOKEN']
+        elif self.haconf['http'] is not None and 'api_password' in self.haconf['http']:
+            self.api_password = str(self.haconf['http']['api_password'])
 
         m = self.request('/')
         if 'message' not in m or m['message'] != 'API running.':
@@ -202,7 +207,7 @@ class ZWave(object):
 
         response = get(url, headers=headers)
         if response.status_code != 200:
-            raise ValueError("Unable to pull the data from: %s" % url)
+            raise ValueError("Unable to pull the data from: %s" % url, response.text)
 
         # print("request(%s):\n" % (path), response.text)
 
