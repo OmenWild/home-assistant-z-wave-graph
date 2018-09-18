@@ -201,7 +201,7 @@ class ZWave(object):
 
 
     def request(self, path):
-        url = 'http://localhost:8123/api' + path
+        url = '%s/api%s' % (self.base_url, path)
         headers = {'x-ha-access': self.api_password,
                    'content-type': 'application/json'}
 
