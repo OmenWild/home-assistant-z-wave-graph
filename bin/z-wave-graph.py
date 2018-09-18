@@ -3,11 +3,13 @@
 import argparse
 import datetime
 import json
-import os.path
-import re
-import sys
 import locale
+import os.path
 import site
+import sys
+
+from requests import get
+
 locale.setlocale(locale.LC_ALL, '')
 
 # Needed for the docker image:
@@ -23,6 +25,7 @@ def need(what):
     print(".\n")
     sys.exit(1)
 
+
 # Add persistent site packages if in docker
 if os.path.isdir('/config/deps/lib/python3.6/site-packages'):
     site.addsitedir('/config/deps/lib/python3.6/site-packages')
@@ -33,7 +36,6 @@ except ImportError:
     need('networkx')
 
 import homeassistant.config
-import homeassistant.remote as remote
 import homeassistant.const
 
 
@@ -169,44 +171,42 @@ class ZWave(object):
         self.haconf = homeassistant.config.load_yaml_config_file(config)
 
         self.outpath = args.outpath or \
-            os.path.join(os.path.dirname(config), 'www', 'z-wave-graph.json')
+                       os.path.join(os.path.dirname(config), 'www', 'z-wave-graph.json')
 
         # API connection necessities.
-        api_password = None
-        base_url = 'http://localhost'
-        port = homeassistant.const.SERVER_PORT
-        use_ssl = False
+        self.api_password = None
+        self.base_url = 'http://localhost:%s' % homeassistant.const.SERVER_PORT
 
         if self.haconf['http'] is not None and 'base_url' in self.haconf['http']:
-            base_url = self.haconf['http']['base_url']
+            self.base_url = self.haconf['http']['base_url']
 
-        if self.haconf['http'] is not None and 'api_password' in self.haconf['http']:
-            api_password = str(self.haconf['http']['api_password'])
+        if self.haconf['api'] is not None and 'api_password' in self.haconf['api']:
+            self.api_password = str(self.haconf['api']['api_password'])
 
-        # If the base_url ends with a port, then strip it and set the port.
-        # remote.API adds the default port if port= is not set.
-        m = re.match(r'^(https?)?(?::\/\/)?([\da-z\.-]+\.?[a-z\.]{2,6}):?(\d*)?([\/\w \.-]*)$', base_url)
-        base_url = m.group(2)
+        m = self.request('/')
+        if 'message' not in m or m['message'] != 'API running.':
+            raise RuntimeError("Error, unable to connect to the API at %s" % self.base_url)
 
-        if m.group(3) != '':
-            port = int(m.group(3))
-
-        if m.group(1) == 'https':
-            use_ssl = True
-            if m.group(3) == '':
-                port = 443
-
-        self.api = remote.API(base_url, api_password, port, use_ssl)
-        if remote.validate_api(self.api).value != 'ok':
-            print("Error, unable to connect to the API: %s" % remote.validate_api(self.api))
-            sys.exit(1)
-
-        self._get_entities()
+        self.get_entities()
 
         if self.args.debug:
             self.dump_nodes()
 
-        self._build_dot()
+        self.build_graph()
+
+
+    def request(self, path):
+        url = 'http://localhost:8123/api' + path
+        headers = {'x-ha-access': self.api_password,
+                   'content-type': 'application/json'}
+
+        response = get(url, headers=headers)
+        if response.status_code != 200:
+            raise ValueError("Unable to pull the data from: %s" % url)
+
+        # print("request(%s):\n" % (path), response.text)
+
+        return json.loads(response.text)
 
 
     def dump_nodes(self):
@@ -226,14 +226,14 @@ class ZWave(object):
         return self.nodes.add(node)
 
 
-    def _get_entities(self):
-        entities = remote.get_states(self.api)
+    def get_entities(self):
+        entities = self.request('/states')
         for entity in entities:
-            if entity.entity_id.startswith('zwave'):
-                self.add(entity.attributes)
+            if entity['entity_id'].startswith('zwave.'):
+                self.add(entity['attributes'])
 
 
-    def _build_dot(self):
+    def build_graph(self):
         for node in self.nodes:
             config = {
                 'label': str(node),
