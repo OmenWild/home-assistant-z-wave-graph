@@ -1,0 +1,13 @@
+{
+    "name": "Z-Wave grapher JSON updater",
+    "version": "0.1.0",
+    "slug": "z_wave_grapher",
+    "description": "Updates the JSON for the Z-Wave grapher, addon originally based on hello_world.",
+    "startup": "application",
+	"homeassistant_api": true,
+	"hassio_api": true,
+    "boot": "auto",
+    "options": {"upd_interval":1800},
+    "schema": {"upd_interval": "int"},
+    "map": ["config:rw"]
+}

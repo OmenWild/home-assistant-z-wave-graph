@@ -6,6 +6,9 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ## Update Info
 
+2018-09-17:
+ * The start of an addon. Thanks due to [jhhbe](https://community.home-assistant.io/u/jhhbe) for the initial files and testing. 
+
 2018-02-03:
  * Can work with the Docker image, but requires some hand-tuning. See the `Docker Image` section below.
  * Show the averageRequestRTT in () under the node name and in the mouse-over.
