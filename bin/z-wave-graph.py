@@ -54,7 +54,7 @@ class Node(object):
             if 'primaryController' in self.capabilities:
                 # Make any Z-Wave node that is a primaryController stand out.
                 self.primary_controller = True
-        except KeyError:
+        except (KeyError, TypeError):
             pass
 
         self.forwarder = True
