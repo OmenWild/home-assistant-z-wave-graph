@@ -175,6 +175,8 @@ class ZWave(object):
 
         # API connection necessities.
         self.api_password = None
+        self.api_token = None
+        
         self.base_url = 'http://localhost:%s' % homeassistant.const.SERVER_PORT
 
         if 'http' not in self.haconf:
@@ -185,6 +187,8 @@ class ZWave(object):
 
         if 'HASSIO_TOKEN' in os.environ:
             self.api_password = os.environ['HASSIO_TOKEN']
+        elif self.args.token:
+            self.api_token = self.args.token
         elif self.haconf['http'] is not None and 'api_password' in self.haconf['http']:
             self.api_password = str(self.haconf['http']['api_password'])
 
@@ -203,6 +207,7 @@ class ZWave(object):
     def request(self, path):
         url = '%s/api%s' % (self.base_url, path)
         headers = {'x-ha-access': self.api_password,
+                   'Authorization': 'Bearer {}'.format(self.api_token),
                    'content-type': 'application/json'}
 
         response = get(url, headers=headers)
@@ -301,7 +306,7 @@ if __name__ == '__main__':
         epilog=removed_txt)
     parser.add_argument('--config', help='path to configuration.yaml')
     parser.add_argument('--debug', action="store_true", dest='debug', default=False, help='print debug output')
-
+    parser.add_argument('--token', type=str, default=None, help='long lived access token')
     parser.add_argument('--port', type=int, default=-1, help=argparse.SUPPRESS)
     parser.add_argument('--ssl', action="store_true", help=argparse.SUPPRESS)
     parser.add_argument('--outpath', type=str, default=None, help='path to write .json file output to')
