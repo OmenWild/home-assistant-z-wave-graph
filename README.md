@@ -6,6 +6,14 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ## Update Info
 
+2019-05-31:
+ * **BREAKING:** now requires a long lived token:
+   * HA -> your user profile -> `CREATE TOKEN` (at the bottom)
+   * Update `config/shell_commands/z-wave-graph.yaml` and add ` --token="YOUR_TOKEN_HERE"`
+ * The default `config/shell_commands/z-wave-graph.yaml` no longer tries to guess where the appropriate Python 3 is. Replace `/FULL/PATH/TO/HA's/python3` with the correct path.
+ * If the script cannot access your HA instance at `http://localhost:8123` then you need to add `--url=http://YOUR_URL_HERE:PORT` to `config/shell_commands/z-wave-graph.yaml` 
+ * Removed the requirement for http in the HA configuration.yaml file.
+
 2018-09-17:
  * Update to use the REST API as required by 0.77+.
 
@@ -16,7 +24,7 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
  * Edge width is now fixed. This helps see where the connections go when hovering.
 
 2018-01-31:
- * **BREAKING:** The `--ssl` and `--port` flags have been removed. Set your `base_url` appropriately and it will work:
+ * **BREAKING:** The `--ssl` and `--port` flags have been removed. Set your `base_url` appropriately and it will work.
     * http://localhost
     * localhost:80
     * http://localhost:8123
@@ -30,10 +38,10 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
  * No longer using Graphviz, neither the system package nor the Python module are required.
  * `config/www/svg-pan-zoom.min.js` is no longer needed, you may delete it.
 
-## Install
-Install the `networkx` Python module:
+## Installation Prerequisite
+Install the `networkx` Python module from **INSIDE** your venv if you use one:
 ```
-pip3 install networkx # from INSIDE your venv if you use one
+(venv-hass) hass@localhost: pip3 install networkx
 ```
 
 ## Suggested Integration
@@ -44,7 +52,7 @@ Requires the following secret for the iframe url:
 ```
 z_wave_graph_url: http://YOUR_DOMAIN_HERE:8123/local/z-wave-graph.html
 ```
-The Python script loads your HA configuration to try to pull out the details it needs. Some installations require more tweaks. See `~/bin/z-wave-graph.py --help` for command line options.
+The Python script loads your HA configuration to try to pull out the details it needs. Some installations require more tweaks. See `~/z-wave-graph/bin/z-wave-graph.py --help` for command line options.
 
 Put all the files in their correct location (assuming you're using a split configuration):
 ```

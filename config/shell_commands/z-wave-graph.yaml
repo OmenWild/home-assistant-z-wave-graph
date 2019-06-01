@@ -1,1 +1,1 @@
-z_wave_graph: ~/bin/python3 ~/bin/z-wave-graph.py
+z_wave_graph: /FULL/PATH/TO/HA's/python3 ~/z-wave-graph/bin/z-wave-graph.py --token="YOUR_TOKEN_HERE"

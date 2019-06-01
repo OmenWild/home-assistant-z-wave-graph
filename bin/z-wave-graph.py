@@ -176,21 +176,18 @@ class ZWave(object):
         # API connection necessities.
         self.api_password = None
         self.api_token = None
-        
-        self.base_url = 'http://localhost:%s' % homeassistant.const.SERVER_PORT
 
-        if 'http' not in self.haconf:
-            raise RuntimeError('http: must be enabled in your hass configuration.')
-
-        if self.haconf['http'] is not None and 'base_url' in self.haconf['http']:
-            self.base_url = self.haconf['http']['base_url']
+        if args.url:
+            self.base_url = args.url
+        else:
+            self.base_url = 'http://localhost:%s' % homeassistant.const.SERVER_PORT
 
         if 'HASSIO_TOKEN' in os.environ:
             self.api_password = os.environ['HASSIO_TOKEN']
         elif self.args.token:
             self.api_token = self.args.token
-        elif self.haconf['http'] is not None and 'api_password' in self.haconf['http']:
-            self.api_password = str(self.haconf['http']['api_password'])
+        else:
+            raise ValueError("No HASSIO_TOKEN in the environment and --token not specified")
 
         m = self.request('/')
         if 'message' not in m or m['message'] != 'API running.':
@@ -289,50 +286,44 @@ class ZWave(object):
             json.dump(self.json, outfile, indent=2, sort_keys=True)
 
 
+    @staticmethod
+    def find_config(paths=None):
+        if not paths:
+            paths = ['~/.config/', '~/config/', '~/.homeassistant/', '~/homeassistant/', '/config/']
+
+        for path in paths:
+            expanded = os.path.expanduser(path)
+            if os.path.isfile(expanded):
+                return expanded
+
+            expanded = os.path.expanduser(os.path.join(path, 'configuration.yaml'))
+            if os.path.isfile(expanded):
+                return expanded
+
+        return None
+
+
+
 if __name__ == '__main__':
     """Generate graph of Home Assistant Z-Wave devices."""
-    to_check = ['~/.config/', '~/config/', '~/.homeassistant/', '~/homeassistant/', '/config/']
-    config = None
 
-    for check in to_check:
-        expanded = os.path.expanduser(os.path.join(check, 'configuration.yaml'))
-        if os.path.isfile(expanded):
-            config = expanded
-
-    removed_txt = "Instead of --ssl or --port, set base_url appropriately, e.g.:\nhttp:\n  base_url: https://localhost:443\n\nin your configuration.yaml"
-
-    parser = argparse.ArgumentParser(
-        description='Generate a Z-Wave mesh from your Home Assistant system.',
-        epilog=removed_txt)
-    parser.add_argument('--config', help='path to configuration.yaml')
+    parser = argparse.ArgumentParser(description='Generate a Z-Wave mesh from your Home Assistant system.')
+    parser.add_argument('--config', default=None, help='path to configuration.yaml if auto-detect fails')
     parser.add_argument('--debug', action="store_true", dest='debug', default=False, help='print debug output')
     parser.add_argument('--token', type=str, default=None, help='long lived access token')
-    parser.add_argument('--port', type=int, default=-1, help=argparse.SUPPRESS)
-    parser.add_argument('--ssl', action="store_true", help=argparse.SUPPRESS)
     parser.add_argument('--outpath', type=str, default=None, help='path to write .json file output to')
+    parser.add_argument('--url', type=str, default=None, help='The URL of the HA server, including port and https if necessary')
     args = parser.parse_args()
 
-    if args.ssl:
-        print("ERROR: --ssl option no longer supported.")
-    if args.port != -1:
-        print("ERROR: --port option no longer supported.")
-    if args.ssl or args.port != -1:
-        print("\n" + removed_txt)
-        sys.exit(1)
-
-    if not config:
-        if 'config' not in args or not args.config:
-            raise ValueError("Unable to automatically find configuration.yaml, you have to specify it with -c/--config")
-
-        to_check = [args.config, os.path.join(args.config, 'configuration.yaml')]
-
-        for check in to_check:
-            expanded = os.path.expanduser(check)
-            if expanded and os.path.isfile(expanded):
-                config = expanded
-
+    if args.config:
+        config = ZWave.find_config([args.config, os.path.join(args.config, 'configuration.yaml')])
         if not config:
             raise ValueError("Unable to find configuration.yaml in specified location.")
+    else:
+        config = ZWave.find_config()
+
+    if not config:
+        raise ValueError("Unable to automatically find configuration.yaml, you have to specify it with -c/--config")
 
     zwave = ZWave(config, args)
     zwave.render()
