@@ -6,7 +6,7 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ## Update Info
 
-2019-05-31:
+2019-07-18:
  * **BREAKING:** now requires a long lived token:
    * HA -> your user profile -> `CREATE TOKEN` (at the bottom)
    * Update `config/shell_commands/z-wave-graph.yaml` and add ` --token="YOUR_TOKEN_HERE"`
