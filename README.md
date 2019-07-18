@@ -6,6 +6,17 @@ Graph your Z-Wave mesh automatically from within Home Assistant.
 
 ## Update Info
 
+**Also 2019-07-18:**
+
+I am pretty much deprecating this project. With the
+newest release, [Home Assistant Community Z-Wave graph (without the
+python)](https://community.home-assistant.io/t/z-wave-graph-without-the-python/64275/183) has pretty much nailed it. Doing it without the Python makes
+integration significantly easier and is the route I should have taken
+from the beginning but my JavaScript is weak and my Python is
+stronger.
+
+I wish they had a GitHub repository, but this gist seems to have the magic: https://gist.github.com/AdamNaj/cbf4d792a22f443fe9d354e4dca4de00 
+
 2019-07-18:
  * **BREAKING:** now requires a long lived token:
    * HA -> your user profile -> `CREATE TOKEN` (at the bottom)
